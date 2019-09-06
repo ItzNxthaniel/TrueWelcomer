@@ -114,7 +114,10 @@ namespace Oxide.Plugins
 
         private void OnPlayerSleepEnded(BasePlayer player)
         {
-			if (!OnlinePlayers.Contains(player.UserIDString))
+                         string uid = player.UserIDString;
+
+            		bool isOnline = false;
+			if (!OnlinePlayers.Contains(player.UserIDString) && isOnline)
 			{
 				OnlinePlayers.Add(player.UserIDString);
 				if (dataFile[player.UserIDString] != null)
