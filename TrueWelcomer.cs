@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Oxide.Core;
 using Oxide.Core.Configuration;
 using System.Collections.Generic;
@@ -114,9 +114,11 @@ namespace Oxide.Plugins
 
         private void OnPlayerSleepEnded(BasePlayer player)
         {
-                         string uid = player.UserIDString;
+            bool isOnline = false;
+            foreach (BasePlayer p in BasePlayer.activePlayerList) {
+                if (p.UserIDString == player.UserIDString) isOnline = true;
+            }
 
-            		bool isOnline = false;
 			if (!OnlinePlayers.Contains(player.UserIDString) && isOnline)
 			{
 				OnlinePlayers.Add(player.UserIDString);
