@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("True Welcomer", "Goomig", "1.0.0")]
+    [Info("True Welcomer", "ItzNxthaniel", "1.0.1")]
     [Description("This plugin makes it easy to welcome new users and welcome back users rejoining! Also supports Disconnect Messages.")]
     public class TrueWelcomer : RustPlugin
     {
@@ -99,9 +99,11 @@ namespace Oxide.Plugins
             }
         }
 
-        private void OnNewSave()
-        {
-            if (_config.clearOnWipe) dataFile.Clear();
+        private void OnNewSave() {
+	        if (!_config.clearOnWipe) return;
+	        
+	        dataFile.Clear();
+	        dataFile.Save();
         }
 
         private void OnPlayerDisconnected(BasePlayer player)
