@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Oxide.Plugins
 {
 
-	[Info("True Welcomer", "ItzNxthaniel", "1.0.1")]
+	[Info("True Welcomer", "ItzNxthaniel", "1.0.2")]
     [Description("This plugin makes it easy to welcome new users and welcome back users rejoining! Also supports Disconnect Messages.")]
     public class TrueWelcomer : RustPlugin
     {
