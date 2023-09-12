@@ -4,11 +4,12 @@ using Oxide.Core.Configuration;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Carbon.Plugins
+namespace Oxide.Plugins
 {
-    [Info("True Welcomer", "ItzNxthaniel", "1.0.1")]
+
+	[Info("True Welcomer", "ItzNxthaniel", "1.0.1")]
     [Description("This plugin makes it easy to welcome new users and welcome back users rejoining! Also supports Disconnect Messages.")]
-    public class TrueWelcomer : CarbonPlugin
+    public class TrueWelcomer : RustPlugin
     {
         #region // Vars/Fields \\
         private static List<string> OnlinePlayers = new List<string>();
