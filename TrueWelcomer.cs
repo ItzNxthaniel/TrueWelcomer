@@ -6,13 +6,13 @@ using System.Collections.Generic;
 
 namespace Oxide.Plugins {
 
-    [Info("True Welcomer", "ItzNxthaniel", "1.1.0")]
+    [Info("True Welcomer", "ItzNxthaniel", "1.1.1")]
     [Description("This plugin makes it easy to welcome new users and welcome back users rejoining! Also supports Disconnect Messages.")]
     public class TrueWelcomer : RustPlugin {
 
         #region Vars/Fields
 
-        private static List<string> OnlinePlayers = new List<string>();
+        private static List<string> _onlinePlayers = new List<string>();
 
         #endregion
 
@@ -31,19 +31,18 @@ namespace Oxide.Plugins {
 
         protected override void LoadDefaultConfig() {
             _config = new Configuration {
-                debugMode = false,
-                showJoinMsgs = true,
-                showWelcomeMessages = true, showLeaveMsgs = true,
-                clearOnWipe = true,
-                steamIconID = 0,
-                hidePlayersWithAuthlevel = false,
-                authLevelToHide = 0,
-                hidePlayersWithPermission = false
+                DebugMode = false,
+                ShowJoinMsgs = true,
+                ShowWelcomeMessages = true, ShowLeaveMsgs = true,
+                ClearOnWipe = true,
+                SteamIconID = 0,
+                HidePlayersWithAuthlevel = false,
+                AuthLevelToHide = 0,
+                HidePlayersWithPermission = false
             };
 
             SaveConfig();
         }
-
 
         private enum AuthLevelEnum {
             Both = 0,
@@ -53,31 +52,31 @@ namespace Oxide.Plugins {
 
         private class Configuration {
             [JsonProperty("Debug Mode")]
-            internal bool debugMode;
+            internal bool DebugMode;
 
             [JsonProperty("Show Join Messages")]
-            internal bool showJoinMsgs;
+            internal bool ShowJoinMsgs;
 
             [JsonProperty("Show Welcome Messages")]
-            internal bool showWelcomeMessages;
+            internal bool ShowWelcomeMessages;
 
             [JsonProperty("Show Leave Messages")]
-            internal bool showLeaveMsgs;
+            internal bool ShowLeaveMsgs;
 
             [JsonProperty("Clears the Data List on wipe")]
-            internal bool clearOnWipe;
+            internal bool ClearOnWipe;
 
             [JsonProperty("Steam User Icon ID")]
-            internal ulong steamIconID;
+            internal ulong SteamIconID;
 
             [JsonProperty("Hide Players with AuthLevel")]
-            internal bool hidePlayersWithAuthlevel;
+            internal bool HidePlayersWithAuthlevel;
 
             [JsonProperty("AuthLevel to Hide. 0 - Both, 1 - AuthLevel1, 2 - AuthLevel2 ")]
-            internal AuthLevelEnum authLevelToHide;
+            internal AuthLevelEnum AuthLevelToHide;
 
             [JsonProperty("Hide Players With Permission")]
-            internal bool hidePlayersWithPermission;
+            internal bool HidePlayersWithPermission;
         }
 
         #endregion
@@ -101,17 +100,17 @@ namespace Oxide.Plugins {
             if (player == null) return;
 
             var message = GetMessage(messageKey, player.UserIDString, args);
-            if (_config.debugMode) Puts(message);
-            Server.Broadcast(message, null, _config.steamIconID);
+            if (_config.DebugMode) Puts(message);
+            Server.Broadcast(message, null, _config.SteamIconID);
         }
 
-        private string GetMessage(string key, string id = null, params object[] args) =>
+        private string GetMessage(string key, string id, params object[] args) =>
             string.Format(lang.GetMessage(key, this, id), args);
 
         #endregion
 
         #region Data
-        private DynamicConfigFile cachedPlayers = Interface.Oxide.DataFileSystem.GetDatafile("TrueWelcomer");
+        private DynamicConfigFile _cachedPlayers = Interface.Oxide.DataFileSystem.GetDatafile("TrueWelcomer");
         #endregion
 
         #region Hooks
@@ -122,23 +121,23 @@ namespace Oxide.Plugins {
             permission.RegisterPermission("truewelcomer.hideUser", this);
 
             foreach (BasePlayer player in BasePlayer.activePlayerList) {
-                OnlinePlayers.Add(player.UserIDString);
+                _onlinePlayers.Add(player.UserIDString);
             }
         }
 
         private void OnNewSave() {
-            if (!_config.clearOnWipe) return;
+            if (!_config.ClearOnWipe) return;
 
-            cachedPlayers.Clear();
-            cachedPlayers.Save();
+            _cachedPlayers.Clear();
+            _cachedPlayers.Save();
         }
 
         private bool ShouldAnnounce(BasePlayer player) { 
-            if (_config.hidePlayersWithPermission && permission.UserHasPermission(player.UserIDString, "truewelcomer.hideUser")) return false;
-            if (!_config.hidePlayersWithAuthlevel) return true;
+            if (_config.HidePlayersWithPermission && permission.UserHasPermission(player.UserIDString, "truewelcomer.hideUser")) return false;
+            if (!_config.HidePlayersWithAuthlevel) return true;
             ServerUsers.User user = ServerUsers.Get(player.userID);
 
-            switch(_config.authLevelToHide) {
+            switch(_config.AuthLevelToHide) {
                 case AuthLevelEnum.Both when user.group is ServerUsers.UserGroup.Moderator or ServerUsers.UserGroup.Owner:
                 case AuthLevelEnum.AuthLevel1 when user.group is ServerUsers.UserGroup.Moderator:
                 case AuthLevelEnum.AuthLevel2 when user.group is ServerUsers.UserGroup.Owner: return false;
@@ -147,8 +146,10 @@ namespace Oxide.Plugins {
         }
 
         private void OnPlayerDisconnected(BasePlayer player) {
+            if (player == null) return;
+            
             string uid = player.UserIDString;
-            OnlinePlayers.Remove(uid);
+            _onlinePlayers.Remove(uid);
 
             switch(ShouldAnnounce(player)) {
                 case true:
@@ -159,6 +160,8 @@ namespace Oxide.Plugins {
         }
 
         private void OnPlayerSleepEnded(BasePlayer player) {
+            if (player == null) return;
+            
             bool isOnline = false;
             foreach (BasePlayer p in BasePlayer.activePlayerList) {
                 if (p.UserIDString == player.UserIDString) isOnline = true;
@@ -166,13 +169,13 @@ namespace Oxide.Plugins {
 
             string keyToUse = "OnJoin";
 
-            if (!OnlinePlayers.Contains(player.UserIDString) && isOnline) {
-                OnlinePlayers.Add(player.UserIDString);
-                if (cachedPlayers[player.UserIDString] != null) keyToUse = "OnJoin";
+            if (!_onlinePlayers.Contains(player.UserIDString) && isOnline) {
+                _onlinePlayers.Add(player.UserIDString);
+                if (_cachedPlayers[player.UserIDString] != null) keyToUse = "OnJoin";
                 else {
                     keyToUse = "OnWelcome";
-                    cachedPlayers[player.UserIDString] = player.displayName;
-                    cachedPlayers.Save();
+                    _cachedPlayers[player.UserIDString] = player.displayName;
+                    _cachedPlayers.Save();
                 }
             }
 
@@ -184,7 +187,12 @@ namespace Oxide.Plugins {
             }
         }
 
-        [Command("hidewelcome")] private void HideWelcomeCommand(BasePlayer player) {
+        #endregion
+
+        #region Commands
+
+        [Command("hidewelcome")] 
+        private void HideWelcomeCommand(BasePlayer player) {
             if (!permission.UserHasPermission(player.UserIDString, "truewelcomer.canSetPreference")) {
                 player.ChatMessage(GetMessage("NoPermission", player.UserIDString));
                 return;
@@ -201,7 +209,7 @@ namespace Oxide.Plugins {
             }
 
 
-            finalMsg += _config.hidePlayersWithPermission ? "" : $"\n{GetMessage("ServerConfigAlert", player.UserIDString)}";
+            finalMsg += _config.HidePlayersWithPermission ? "" : $"\n{GetMessage("ServerConfigAlert", player.UserIDString)}";
             player.ChatMessage(finalMsg);
         }
 
@@ -216,20 +224,20 @@ namespace Oxide.Plugins {
             string msg = "";
             int num = 0;
             foreach (BasePlayer player in BasePlayer.activePlayerList) {
-                if (cachedPlayers[player.UserIDString] != null) num += 0;
+                if (_cachedPlayers[player.UserIDString] != null) num += 0;
                 else {
-                    cachedPlayers[player.UserIDString] = player.displayName;
-                    cachedPlayers.Save();
+                    _cachedPlayers[player.UserIDString] = player.displayName;
+                    _cachedPlayers.Save();
                     num += 1;
                     msg += $"Player {player.displayName} has been added.\n";
                 }
             }
 
             foreach (BasePlayer player in BasePlayer.sleepingPlayerList) {
-                if (cachedPlayers[player.UserIDString] != null) num += 0;
+                if (_cachedPlayers[player.UserIDString] != null) num += 0;
                 else {
-                    cachedPlayers[player.UserIDString] = player.displayName;
-                    cachedPlayers.Save();
+                    _cachedPlayers[player.UserIDString] = player.displayName;
+                    _cachedPlayers.Save();
                     num += 1;
                     msg += $"Player {player.displayName} has been added.\n";
                 }
@@ -250,8 +258,8 @@ namespace Oxide.Plugins {
                 return;
             }
 
-            cachedPlayers.Clear();
-            cachedPlayers.Save();
+            _cachedPlayers.Clear();
+            _cachedPlayers.Save();
             arg.ReplyWith("The Data File for True Welcomer has been reset!");
         }
 
