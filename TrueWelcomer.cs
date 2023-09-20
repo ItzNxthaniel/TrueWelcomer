@@ -5,8 +5,7 @@ using Oxide.Core.Configuration;
 using System.Collections.Generic;
 
 namespace Oxide.Plugins {
-
-    [Info("True Welcomer", "ItzNxthaniel", "1.1.1")]
+    [Info("True Welcomer", "ItzNxthaniel", "1.1.2")]
     [Description("This plugin makes it easy to welcome new users and welcome back users rejoining! Also supports Disconnect Messages.")]
     public class TrueWelcomer : RustPlugin {
 
@@ -151,16 +150,12 @@ namespace Oxide.Plugins {
             string uid = player.UserIDString;
             _onlinePlayers.Remove(uid);
 
-            switch(ShouldAnnounce(player)) {
-                case true:
-                    Broadcast(player, "OnLeave", player.displayName);
-                    break;
-                default: return;
-            }
+            if (ShouldAnnounce(player)) 
+                Broadcast(player, "OnLeave", player.displayName);
         }
 
         private void OnPlayerSleepEnded(BasePlayer player) {
-            if (player == null) return;
+            if (player == null || _onlinePlayers.Contains(player.UserIDString)) return;
             
             bool isOnline = false;
             foreach (BasePlayer p in BasePlayer.activePlayerList) {
@@ -168,8 +163,8 @@ namespace Oxide.Plugins {
             }
 
             string keyToUse = "OnJoin";
-
-            if (!_onlinePlayers.Contains(player.UserIDString) && isOnline) {
+            
+            if (isOnline) {
                 _onlinePlayers.Add(player.UserIDString);
                 if (_cachedPlayers[player.UserIDString] != null) keyToUse = "OnJoin";
                 else {
@@ -178,13 +173,9 @@ namespace Oxide.Plugins {
                     _cachedPlayers.Save();
                 }
             }
-
-            switch(ShouldAnnounce(player)) {
-                case true:
-                    Broadcast(player, keyToUse, player.displayName);
-                    break;
-                default: return;
-            }
+            
+            if (ShouldAnnounce(player))
+                Broadcast(player, keyToUse, player.displayName);
         }
 
         #endregion
