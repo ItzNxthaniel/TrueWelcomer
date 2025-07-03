@@ -3,9 +3,13 @@ using UnityEngine;
 using Newtonsoft.Json;
 using Oxide.Core.Configuration;
 using System.Collections.Generic;
+using System;
 
 namespace Oxide.Plugins {
-    [Info("True Welcomer", "ItzNxthaniel", "1.1.2")]
+    using Core.Libraries;
+    using Newtonsoft.Json.Linq;
+
+    [Info("True Welcomer", "ItzNxthaniel", "1.2.0")]
     [Description("This plugin makes it easy to welcome new users and welcome back users rejoining! Also supports Disconnect Messages.")]
     public class TrueWelcomer : RustPlugin {
 
@@ -32,12 +36,15 @@ namespace Oxide.Plugins {
             _config = new Configuration {
                 DebugMode = false,
                 ShowJoinMsgs = true,
-                ShowWelcomeMessages = true, ShowLeaveMsgs = true,
+                ShowWelcomeMessages = true, 
+                ShowLeaveMsgs = true,
                 ClearOnWipe = true,
                 SteamIconID = 0,
                 HidePlayersWithAuthlevel = false,
                 AuthLevelToHide = 0,
-                HidePlayersWithPermission = false
+                HidePlayersWithPermission = false,
+                PrivateMessages = false,
+                ShowCountryCode = false
             };
 
             SaveConfig();
@@ -76,12 +83,17 @@ namespace Oxide.Plugins {
 
             [JsonProperty("Hide Players With Permission")]
             internal bool HidePlayersWithPermission;
+            
+            [JsonProperty("Private Messages Only - Disables Leave Messages by Default")]
+            internal bool PrivateMessages;
+
+            [JsonProperty("Show Country Code - If Disabled does not make any API Calls.")]
+            internal bool ShowCountryCode;
         }
 
         #endregion
 
         #region Language
-
         protected override void LoadDefaultMessages() {
             lang.RegisterMessages(new Dictionary<string, string> {
                                       ["OnWelcome"] = "Welcome, <color=#ff7675>{0}</color>, to the server!",
@@ -100,12 +112,50 @@ namespace Oxide.Plugins {
 
             var message = GetMessage(messageKey, player.UserIDString, args);
             if (_config.DebugMode) Puts(message);
-            Server.Broadcast(message, null, _config.SteamIconID);
+            if (!_config.PrivateMessages) {
+                GetCountryCode(player, countryCode => {
+                    Server.Broadcast(message, countryCode, _config.SteamIconID);    
+                });
+            } else {
+                if (messageKey.Equals("OnLeave")) return;
+
+                player.ChatMessage(message);
+            }
         }
 
         private string GetMessage(string key, string id, params object[] args) =>
             string.Format(lang.GetMessage(key, this, id), args);
 
+        private void GetCountryCode(BasePlayer player, Action<string> callback) {
+            if (!_config.ShowCountryCode) {
+                callback(null);
+                return;
+            }
+
+            var ip = player.Connection.IPAddressWithoutPort();
+            if (string.IsNullOrEmpty(ip)) {
+                callback(null);
+                return;
+            }
+
+            var url = $"http://ip-api.com/json/{ip}?fields=status,message,countryCode";
+            webrequest.Enqueue(url, null, (code, response) => {
+                if (code != 200 || string.IsNullOrWhiteSpace(response)) {
+                    Puts($"Country request failed. Code: {code}, Response: {response}");
+                    callback(null);
+                    return;
+                }
+
+                try {
+                    var json = JObject.Parse(response);
+                    var countryCode = $"[{json.GetValue("countryCode")}]";
+                    callback(countryCode);
+                } catch (Exception ex) {
+                    Puts($"Error parsing JSON: {ex}");
+                    callback(null);
+                }
+            }, this);
+        }
         #endregion
 
         #region Data
@@ -113,7 +163,6 @@ namespace Oxide.Plugins {
         #endregion
 
         #region Hooks
-
         private void Init() {
             permission.RegisterPermission("truewelcomer.admin", this);
             permission.RegisterPermission("truewelcomer.canSetPreference", this);
@@ -147,35 +196,36 @@ namespace Oxide.Plugins {
         private void OnPlayerDisconnected(BasePlayer player) {
             if (player == null) return;
             
-            string uid = player.UserIDString;
-            _onlinePlayers.Remove(uid);
+            _onlinePlayers.Remove(player.UserIDString);
 
-            if (ShouldAnnounce(player)) 
+            if (_config.ShowLeaveMsgs && ShouldAnnounce(player)) 
                 Broadcast(player, "OnLeave", player.displayName);
         }
 
         private void OnPlayerSleepEnded(BasePlayer player) {
-            if (player == null || _onlinePlayers.Contains(player.UserIDString)) return;
+            if (player == null ) return;
+            if (_onlinePlayers.Contains(player.UserIDString)) return;
             
             bool isOnline = false;
             foreach (BasePlayer p in BasePlayer.activePlayerList) {
                 if (p.UserIDString == player.UserIDString) isOnline = true;
             }
 
-            string keyToUse = "OnJoin";
-            
             if (isOnline) {
+                var keyToUse = "";
+                if (_config.ShowJoinMsgs) keyToUse = "OnJoin"; 
+                
                 _onlinePlayers.Add(player.UserIDString);
-                if (_cachedPlayers[player.UserIDString] != null) keyToUse = "OnJoin";
-                else {
-                    keyToUse = "OnWelcome";
+                if (_cachedPlayers[player.UserIDString] == null ) {
+                    if (_config.ShowWelcomeMessages) keyToUse = "OnWelcome";
+                    
                     _cachedPlayers[player.UserIDString] = player.displayName;
                     _cachedPlayers.Save();
                 }
+                
+                if (!string.IsNullOrEmpty(keyToUse) && ShouldAnnounce(player))
+                    Broadcast(player, keyToUse, player.displayName);
             }
-            
-            if (ShouldAnnounce(player))
-                Broadcast(player, keyToUse, player.displayName);
         }
 
         #endregion

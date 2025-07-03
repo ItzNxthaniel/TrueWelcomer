@@ -3,15 +3,17 @@
 ## Configuration
 ```json
 {
-  "Debug Mode": false
+  "Debug Mode": false,
   "Show Join Messages": true,
   "Show Welcome Messages": true,
   "Show Leave Messages": true,
   "Clears the Data List on wipe": true,
-  "Steam User Icon ID": 0
+  "Steam User Icon ID": 0,
   "Hide Players with AuthLevel": false,
   "AuthLevel to Hide. 0 - Both, 1 - AuthLevel1, 2 - AuthLevel2 ": 0,
-  "Hide Players With Permission": false
+  "Hide Players With Permission": false,
+  "Private Messages Only - Disables Leave Messages by Default":  false,
+  "Show Country Code - If Disabled does not make any API Calls.": false
 }
 ```
 
